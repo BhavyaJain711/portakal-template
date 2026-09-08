@@ -85,6 +85,36 @@ describe("validateTemplate", () => {
     ]);
   });
 
+  it("flags an out-of-range textScale", () => {
+    const bad: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          textScale: 5,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "Hi" } }],
+        },
+      ],
+    };
+    const result = validateTemplate(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ path: "rows[0].textScale", message: "row textScale must be a number between 0.5 and 3" }),
+    ]);
+  });
+
+  it("accepts a valid textScale", () => {
+    const good: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          textScale: 1.5,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "Hi" } }],
+        },
+      ],
+    };
+    expect(validateTemplate(good).valid).toBe(true);
+  });
+
   it("reports static row heights that don't sum to 100", () => {
     const bad: TemplateSchema = {
       rows: [
@@ -231,6 +261,69 @@ describe("validateTemplate", () => {
     };
     const result = validateTemplate(template);
     expect(result.warnings.some((w) => w.message.includes('stray "{{"'))).toBe(true);
+  });
+
+  it("accepts valid fonts 0-8 and fontScale", () => {
+    const good: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [
+            { widthPercent: 50, element: { type: "text", content: "A", font: "3", fontScale: 4 } },
+            { widthPercent: 50, element: { type: "text", content: "B", font: "8" } },
+          ],
+        },
+      ],
+    };
+    const result = validateTemplate(good);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("flags an invalid font id", () => {
+    const bad: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "Hi", font: "9" as unknown as "3" } }],
+        },
+      ],
+    };
+    const result = validateTemplate(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ path: "rows[0].cells[0].element", message: 'invalid font "9" (expected one of 0-8)' }),
+    ]);
+  });
+
+  it("flags an out-of-range fontScale", () => {
+    const bad: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "Hi", font: "3", fontScale: 11 } }],
+        },
+      ],
+    };
+    const result = validateTemplate(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ path: "rows[0].cells[0].element", message: "fontScale must be an integer between 1 and 10" }),
+    ]);
+  });
+
+  it("warns when fontScale is set on font 0 (ignored)", () => {
+    const tpl: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "Hi", font: "0", fontScale: 5 } }],
+        },
+      ],
+    };
+    const result = validateTemplate(tpl);
+    expect(result.valid).toBe(true);
+    expect(result.warnings.some((w) => w.message.includes("ignored for font"))).toBe(true);
   });
 });
 

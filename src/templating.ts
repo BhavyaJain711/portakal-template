@@ -124,6 +124,7 @@ export function resolveTemplate(
         rows.push({
           // Per-item budget: each expanded row gets the row's full share.
           heightPercent: row.heightPercent,
+          textScale: row.textScale,
           cells: row.cells.map((c) => ({
             widthPercent: c.widthPercent,
             element: interpolateElement(c.element, itemData),
@@ -133,6 +134,7 @@ export function resolveTemplate(
     } else {
       rows.push({
         heightPercent: row.heightPercent,
+        textScale: row.textScale,
         cells: row.cells.map((c) => ({
           widthPercent: c.widthPercent,
           element: interpolateElement(c.element, data),

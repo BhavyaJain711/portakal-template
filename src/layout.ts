@@ -23,6 +23,8 @@ export interface Bounds {
   y: number;
   width: number;
   height: number;
+  /** Horizontal text stretch multiplier for this cell (from its row, default 1). */
+  textScale?: number;
 }
 
 /** Layout result: label-level dot dimensions + one rectangle per cell. */
@@ -79,18 +81,35 @@ export function layoutTemplate(
   const widthDots = toDots(spec.width, unit, dpi);
   const heightDots = toDots(spec.height, unit, dpi);
 
-  // Global margin: inset the printable area so content never prints into the
-  // unreliable edge of the sticker. Clamped so a huge margin can't collapse
-  // the area to zero.
-  const margin = spec.margin != null && spec.margin > 0 ? Math.round(toDots(spec.margin, unit, dpi)) : 0;
-  const usableW = Math.max(1, widthDots - margin * 2);
-  const usableH = Math.max(1, heightDots - margin * 2);
+  // Global margins: inset the printable area so content never prints into the
+  // unreliable edge of the sticker. Support single margin or 4-directional margins.
+  let rawMl = 0;
+  let rawMr = 0;
+  let rawMt = 0;
+  let rawMb = 0;
+
+  if (typeof spec.margin === "number" && spec.margin > 0) {
+    rawMl = rawMr = rawMt = rawMb = spec.margin;
+  } else if (spec.margin && typeof spec.margin === "object") {
+    if (spec.margin.top != null && spec.margin.top > 0) rawMt = spec.margin.top;
+    if (spec.margin.bottom != null && spec.margin.bottom > 0) rawMb = spec.margin.bottom;
+    if (spec.margin.left != null && spec.margin.left > 0) rawMl = spec.margin.left;
+    if (spec.margin.right != null && spec.margin.right > 0) rawMr = spec.margin.right;
+  }
+
+  const marginLeft = rawMl > 0 ? Math.round(toDots(rawMl, unit, dpi)) : 0;
+  const marginRight = rawMr > 0 ? Math.round(toDots(rawMr, unit, dpi)) : 0;
+  const marginTop = rawMt > 0 ? Math.round(toDots(rawMt, unit, dpi)) : 0;
+  const marginBottom = rawMb > 0 ? Math.round(toDots(rawMb, unit, dpi)) : 0;
+
+  const usableW = Math.max(1, widthDots - marginLeft - marginRight);
+  const usableH = Math.max(1, heightDots - marginTop - marginBottom);
 
   const cells: Bounds[] = [];
-  let y = margin;
+  let y = marginTop;
   for (const row of resolved.rows) {
     const rowH = Math.round((usableH * row.heightPercent) / 100);
-    let x = margin;
+    let x = marginLeft;
     for (const cell of row.cells) {
       const cellW = Math.round((usableW * cell.widthPercent) / 100);
       const px = Math.min(padding, Math.floor(cellW / 2));
@@ -100,6 +119,7 @@ export function layoutTemplate(
         y: y + py,
         width: Math.max(1, cellW - px * 2),
         height: Math.max(1, rowH - py * 2),
+        textScale: row.textScale,
       });
       x += cellW;
     }

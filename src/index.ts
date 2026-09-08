@@ -13,6 +13,7 @@ export { compileTemplate, buildLabel } from "./compile.js";
 export type { CompiledTemplate, CompileOptions } from "./compile.js";
 export { scaleBarcode, scaleQr, layoutText } from "./autoscale.js";
 export type { ScaledBarcode, ScaledQr, TextLine, TextLayout } from "./autoscale.js";
+export { TSC_DOT_FONTS, type TSCTextFont } from "portakal-lite";
 export { validateTemplate, extractPlaceholders } from "./validate.js";
 export type { ValidationIssue, ValidationResult, AllowedVariable } from "./validate.js";
 export type {

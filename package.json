@@ -1,6 +1,6 @@
 {
   "name": "portakal-template",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Percentage-layout label templates on top of portakal-lite. Declarative JSON template + data → TSC/TSPL2 + ZPL II printer-ready strings, with auto-scaling layout. Device-agnostic: the label size/DPI are supplied at compile time, not stored in the template.",
   "keywords": [
     "printer",
@@ -15,31 +15,32 @@
     "typescript"
   ],
   "license": "MIT",
-  "type": "module",
   "sideEffects": false,
   "files": [
     "dist"
   ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "portakal-lite": "^0.0.1"
+    "portakal-lite": "^1.0.0"
   },
   "devDependencies": {
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   }

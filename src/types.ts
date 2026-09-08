@@ -21,11 +21,15 @@ export interface PrintSpec {
   gap?: number;
   /**
    * Margin around the whole content area, in `unit` (default 0). Insets the
-   * layout on all sides so nothing prints into the unreliable edge of the
-   * sticker — use when the media isn't perfectly aligned with the printer
-   * origin. Applied to the content grid only; the label SIZE stays the same.
+   * layout so nothing prints into the unreliable edge of the sticker.
+   * Can be a single number (applied to all sides) or an object `{ top?, bottom?, left?, right? }`.
    */
-  margin?: number;
+  margin?: number | {
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  };
   /** Print speed (default 4) */
   speed?: number;
   /** Print darkness 0-15 (default 8) */
@@ -50,9 +54,9 @@ export interface PrintSpec {
   font0Mode?: "multiplier" | "points";
   /**
    * Default average glyph width relative to the font height for text width
-   * estimates (default 0.6). Font "0" TrueType runs ~0.5–0.6× the point
-   * height; tune per printer/font if centered text drifts. Per-element
-   * override via the text element's `charWidthFactor`.
+   * estimates (default 0.5). Font "0" (CG Triumvirate Bold Condensed) runs
+   * ~0.5× the point height; tune per printer/font if centered text drifts.
+   * Per-element override via the text element's `charWidthFactor`.
    */
   charWidthFactor?: number;
 }
@@ -79,6 +83,12 @@ export interface TemplateRow {
    * against each element. Nested repeats are not supported.
    */
   repeat?: string;
+  /**
+   * Horizontal text stretch multiplier for all text in this row (default 1).
+   * 0.5–3.0; widens glyphs on the x-axis only — the row height (y-axis) and
+   * the auto-computed font size stay fixed, like BarTender's width scaling.
+   */
+  textScale?: number;
   /** Cells laid left→right; widths are percentages of the label width. */
   cells: TemplateCell[];
 }
@@ -97,6 +107,18 @@ export type TemplateElement =
       type: "text";
       /** Text content; may contain {{var}} placeholders. */
       content: string;
+      /**
+       * TSC font: "0" (scalable TrueType, sized in points) or "1"–"8"
+       * (fixed-pitch dot fonts, sized as an integer multiplier 1–10 of their
+       * base size — see TSC_DOT_FONTS). Default "1".
+       */
+      font?: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
+      /**
+       * Max font size multiplier for fixed fonts 1–8 (integer 1–10, default 10).
+       * The engine auto-picks the largest multiplier that fits the cell,
+       * capped at this value. Ignored for font "0" (points-based).
+       */
+      fontScale?: number;
       align?: "left" | "center" | "right";
       bold?: boolean;
       reverse?: boolean;
@@ -104,9 +126,10 @@ export type TemplateElement =
       wrap?: boolean;
       /**
        * Average glyph width relative to the font height, used to estimate the
-       * line width for size/positioning (default 0.6). TrueType font "0" runs
-       * ~0.5–0.6× the point height; tune per printer/font if text overflows or
-       * underfills. Not needed when the printer centers via BLOCK/^FB — that
+       * line width for size/positioning (default 0.5). TrueType font "0" (CG
+       * Triumvirate Bold Condensed) runs ~0.5× the point height; tune per
+       * printer/font if text overflows or underfills. Not needed when the
+       * printer centers via BLOCK/^FB — that
        * uses the real glyph widths on the device.
        */
       charWidthFactor?: number;
@@ -124,8 +147,10 @@ export type TemplateElement =
       type: "qrcode";
       /** Content to encode; may contain {{var}} placeholders. */
       content: string;
-      /** Error correction level (default "M"). */
+      /** Error correction level (default "H"). */
       ecc?: "L" | "M" | "Q" | "H";
+      /** Show human-readable text below the QR code (default false). */
+      showText?: boolean;
     }
   | {
       type: "line";
@@ -174,6 +199,8 @@ export interface ResolvedTemplate {
 export interface ResolvedRow {
   /** Percentage of label height. */
   heightPercent: number;
+  /** Horizontal text stretch multiplier for all text in this row (default 1). */
+  textScale?: number;
   /** Interpolated cells. */
   cells: ResolvedCell[];
 }

@@ -4,7 +4,7 @@
  * (one per part, from an array in the data). Same template renders at any
  * label size via the PrintSpec.
  */
-import { compileTemplate } from "../dist/index.js";
+import { compileTemplate } from "../dist/index.mjs";
 
 const designTemplate = {
   id: "ordyn_design_label_v1",
@@ -22,12 +22,13 @@ const designTemplate = {
       ],
     },
     {
-      // Cut length — centered below the design number.
+      // Cut length — centered below the design number. Uses fixed font "3"
+      // (16×24 dots) at the auto-computed multiplier instead of scalable "0".
       heightPercent: 20,
       cells: [
         {
           widthPercent: 100,
-          element: { type: "text", content: "CUT: {{design.cut}} m", align: "center", bold: true },
+          element: { type: "text", content: "CUT: {{design.cut}} m", align: "center", bold: true, font: "3" },
         },
       ],
     },
@@ -77,5 +78,5 @@ const tall = compileTemplate(designTemplate, data, {
   spec: { width: 65, height: 60, unit: "mm", dpi: 203, font0Mode: "points", margin: 3 },
 });
 console.log("\n=== Same template on a 65×60mm label (first 4 TEXT lines) ===");
-console.log(tall.tsc.split("\r\n").filter((l) => l.startsWith("TEXT")).slice(0, 4).join("\r\n"));
+console.log(tall.tsc.split("\n").filter((l) => l.startsWith("TEXT")).slice(0, 4).join("\n"));
 

@@ -108,6 +108,32 @@ describe("layoutTemplate", () => {
     expect(layout.cells[0]).toEqual({ x: 16, y: 16, width: 448, height: 288 });
   });
 
+  it("supports individual 4-directional margins (top, bottom, left, right)", () => {
+    const template: TemplateSchema = {
+      rows: [{ heightPercent: 100, cells: [{ widthPercent: 100, element: { type: "space" } }] }],
+    };
+    const resolved = resolvedFrom(template, {});
+    // object margin { top: 3, bottom: 5, left: 2, right: 4 }
+    // marginLeft = 2mm (16 dots), marginRight = 4mm (32 dots) -> usableW = 480 - 16 - 32 = 432
+    // marginTop = 3mm (24 dots), marginBottom = 5mm (40 dots) -> usableH = 320 - 24 - 40 = 256
+    const layout = layoutTemplate(
+      resolved,
+      { ...spec, margin: { top: 3, bottom: 5, left: 2, right: 4 } },
+      0,
+    );
+    expect(layout.cells[0]).toEqual({ x: 16, y: 24, width: 432, height: 256 });
+
+    // object margin { top: 1, bottom: 2, left: 3, right: 4 }
+    // top = 8 dots, bottom = 16 dots -> usableH = 320 - 8 - 16 = 296
+    // left = 24 dots, right = 32 dots -> usableW = 480 - 24 - 32 = 424
+    const layout2 = layoutTemplate(
+      resolved,
+      { ...spec, margin: { top: 1, bottom: 2, left: 3, right: 4 } },
+      0,
+    );
+    expect(layout2.cells[0]).toEqual({ x: 24, y: 8, width: 424, height: 296 });
+  });
+
   it("clamps an oversized margin so content never collapses", () => {
     const template: TemplateSchema = {
       rows: [{ heightPercent: 100, cells: [{ widthPercent: 100, element: { type: "space" } }] }],

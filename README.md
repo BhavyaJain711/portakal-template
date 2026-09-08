@@ -65,18 +65,51 @@ A template is rows stacked top→down; each row is cells laid left→right.
 |---|---|---|
 | `rows[].heightPercent` | number | % of label height (e.g. 20 = 20%). Sums to ~100; repeat rows rescale the total. |
 | `rows[].repeat` | string | Data key of an array. The row expands once per element; `{{...}}` resolves per element. Nested repeats unsupported. |
+| `rows[].textScale` | number | Horizontal text stretch multiplier for all text in the row (default `1`, range `0.5`–`3`). Widens glyphs on the x-axis only — the row height (y-axis) and auto-computed font size stay fixed, like BarTender's width scaling. Repeat rows inherit it. |
 | `rows[].cells[].widthPercent` | number | % of label width; must sum to ~100. |
 | `rows[].cells[].element` | object | One of: `text`, `barcode`, `qrcode`, `line`, `box`, `image`, `space`. |
 
 Element types:
 
-- **text** — `content`, `align` (`left|center|right`), `bold`, `reverse`, `wrap`, `charWidthFactor`
+- **text** — `content`, `font` (`"0"` default — scalable, or `"1"`–`"8"` fixed-pitch), `fontScale` (fixed fonts only, 1–10), `align` (`left|center|right`), `bold`, `reverse`, `wrap`, `charWidthFactor`
 - **barcode** — `content`, `symbology` (`code128` default, `code39`, `ean13`, `upca`, …), `showText`
 - **qrcode** — `content`, `ecc` (`L|M|Q|H`, default `M`)
 - **line** — `thickness`, `orientation` (`horizontal|vertical`)
 - **box** — `thickness`, `radius`, `child` (optional inner element)
 - **image** — `src` as a 1-bit bitmap descriptor `"width,height,byte,byte,..."` (dots)
 - **space** — blank
+
+### Fonts
+
+Text elements default to font `"0"` — the scalable TrueType font, sized in points
+with independent X/Y scaling. Fonts `"1"`–`"8"` are the TSC fixed-pitch dot fonts,
+sized as an integer **multiplier (1–10)** of their base dot size (the engine
+auto-picks the largest multiplier that fits the cell; `fontScale` caps it):
+
+| Font | Base size (dots) | Notes |
+|---|---|---|
+| `"0"` | scalable (points) | Monotype CG Triumvirate Bold Condensed |
+| `"1"` | 8×12 | fixed pitch |
+| `"2"` | 12×20 | fixed pitch |
+| `"3"` | 16×24 | fixed pitch |
+| `"4"` | 24×32 | fixed pitch |
+| `"5"` | 32×48 | fixed pitch |
+| `"6"` | 14×19 | OCR-B |
+| `"7"` | 21×27 | OCR-B |
+| `"8"` | 14×25 | OCR-A |
+
+```json
+{
+  "type": "text",
+  "content": "CUT: 9.00 m",
+  "font": "3",
+  "fontScale": 4,
+  "align": "center"
+}
+```
+
+`fontScale` (1–10) sets the maximum multiplier; omit it to let the engine fill
+the cell height. It is ignored for font `"0"` (points-based).
 
 The `PrintSpec` supplies `width`, `height`, `unit`, `dpi`, `gap`, `margin`, `speed`, `density`, `direction`, `copies`, `font0Mode`, `charWidthFactor`. See the type definition for details.
 

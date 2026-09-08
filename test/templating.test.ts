@@ -72,6 +72,23 @@ describe("resolveTemplate (repeat rows)", () => {
     const resolved = resolveTemplate(schema, data);
     expect(resolved.rows).toHaveLength(1);
   });
+
+  it("repeat rows inherit textScale on every expanded row", () => {
+    const s: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          repeat: "parts",
+          textScale: 2,
+          cells: [{ widthPercent: 100, element: { type: "text", content: "{{name}}" } }],
+        },
+      ],
+    };
+    const resolved = resolveTemplate(s, { parts: [{ name: "A" }, { name: "B" }] });
+    expect(resolved.rows).toHaveLength(2);
+    expect(resolved.rows[0]!.textScale).toBe(2);
+    expect(resolved.rows[1]!.textScale).toBe(2);
+  });
 });
 
 describe("resolveTemplate (repeat budget scaling)", () => {

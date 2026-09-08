@@ -51,13 +51,39 @@ export function buildLabel(
   fontBase?: { width: number; height: number },
   font0Mode: "multiplier" | "points" = "multiplier",
   charWidthFactor?: number,
-  printParams: Partial<Pick<PrintSpec, "gap" | "margin" | "speed" | "density" | "direction" | "copies">> = {},
+  printParams: Partial<
+    Pick<
+      PrintSpec,
+      | "gap"
+      | "margin"
+      | "speed"
+      | "density"
+      | "direction"
+      | "copies"
+    >
+  > = {},
   unit: "mm" | "inch" | "dot" = "mm",
 ): LabelBuilder {
   // The builder is constructed in dot space; convert any physical (mm/inch)
   // print params so they're not misinterpreted as dots.
   const toDotsIfPhysical = (v: number | undefined): number | undefined =>
     v != null ? (unit === "dot" ? Math.round(v) : Math.round(toDots(v, unit, dpi))) : undefined;
+
+  const rawMarginNum = typeof printParams.margin === "number" ? printParams.margin : undefined;
+  const rawMarginObj =
+    typeof printParams.margin === "object" && printParams.margin !== null ? printParams.margin : undefined;
+
+  const marginParam =
+    rawMarginNum != null
+      ? toDotsIfPhysical(rawMarginNum)
+      : rawMarginObj != null
+        ? {
+            top: toDotsIfPhysical(rawMarginObj.top),
+            bottom: toDotsIfPhysical(rawMarginObj.bottom),
+            left: toDotsIfPhysical(rawMarginObj.left),
+            right: toDotsIfPhysical(rawMarginObj.right),
+          }
+        : undefined;
 
   const b = label({
     width: layout.widthDots,
@@ -68,7 +94,7 @@ export function buildLabel(
     font0Mode,
     charWidthFactor,
     gap: toDotsIfPhysical(printParams.gap),
-    margin: toDotsIfPhysical(printParams.margin),
+    margin: marginParam,
     speed: printParams.speed,
     density: printParams.density,
     direction: printParams.direction,
@@ -104,7 +130,10 @@ function addElement(
       // Manual layout: compute aligned/wrapped positions, emit plain TEXT
       // commands (no BLOCK) so it works on every TSPL printer.
       const elFactor = el.charWidthFactor ?? charWidthFactor;
+      const textScale = bounds.textScale ?? 1;
       const laid = layoutText(el.content, { x, y, width, height }, {
+        font: el.font ?? "1",
+        fontScale: el.fontScale,
         wrap: el.wrap ?? true,
         align: el.align ?? "left",
         verticalCenter: false,
@@ -112,6 +141,7 @@ function addElement(
         fontBase,
         font0Mode,
         charWidthFactor: elFactor,
+        textScale,
       });
       for (const line of laid.lines) {
         b.text(line.text, {
@@ -119,10 +149,15 @@ function addElement(
           y: line.y,
           font: laid.font,
           size: laid.size,
-          // Pass alignment + glyph-width factor through so the preview can
-          // anchor text exactly like the printer's estimate (the compiler
-          // ignores align for plain TEXT — it uses x as-is).
+          // Widen on the x-axis only: the row height (y-axis) stays fixed by
+          // the cell, so the printed glyphs stretch horizontally like BarTender.
+          // Fixed fonts 1-8 require integer multipliers (1-10).
+          xScale: laid.font !== "0"
+            ? Math.max(1, Math.min(10, Math.round(line.xSize * textScale)))
+            : Math.round(line.xSize * textScale),
+          // Pass alignment through so the preview can anchor text.
           align: el.align,
+          reverse: el.reverse,
           charWidthFactor: elFactor,
         } as Parameters<LabelBuilder["text"]>[1]);
       }
@@ -131,8 +166,9 @@ function addElement(
 
     case "barcode": {
       const scaled = scaleBarcode(el.content, { x, y, width, height }, { symbology: el.symbology });
+      const barX = x + Math.max(0, Math.floor((width - scaled.estimatedWidth) / 2));
       b.barcode(el.content, {
-        x,
+        x: barX,
         y,
         symbology: el.symbology ?? "code128",
         height: scaled.height,
@@ -149,7 +185,8 @@ function addElement(
         x,
         y,
         cellSize: scaled.cellSize,
-        ecc: el.ecc ?? "M",
+        ecc: el.ecc ?? "H",
+        showText: el.showText,
       });
       break;
     }
@@ -170,7 +207,10 @@ function addElement(
         if (el.child.type === "text") {
           // Text child: vertically center in the box, align per the element.
           const elFactor = el.child.charWidthFactor ?? charWidthFactor;
+          const textScale = bounds.textScale ?? 1;
           const laid = layoutText(el.child.content, { x, y, width, height }, {
+            font: el.child.font ?? "1",
+            fontScale: el.child.fontScale,
             wrap: el.child.wrap ?? true,
             align: el.child.align ?? "left",
             verticalCenter: true,
@@ -178,6 +218,7 @@ function addElement(
             fontBase,
             font0Mode,
             charWidthFactor: elFactor,
+            textScale,
           });
           for (const line of laid.lines) {
             b.text(line.text, {
@@ -185,6 +226,7 @@ function addElement(
               y: line.y,
               font: laid.font,
               size: laid.size,
+              xScale: line.xSize * textScale,
               align: el.child.align,
               charWidthFactor: elFactor,
             } as Parameters<LabelBuilder["text"]>[1]);

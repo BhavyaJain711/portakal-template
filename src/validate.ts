@@ -35,6 +35,8 @@ const ALIGNS = new Set(["left", "center", "right"]);
 const ECCS = new Set(["L", "M", "Q", "H"]);
 const ORIENTATIONS = new Set(["horizontal", "vertical"]);
 const ELEMENT_TYPES = new Set(["text", "barcode", "qrcode", "line", "box", "image", "space"]);
+/** TSC text fonts: "0" (scalable) or "1"–"8" (fixed-pitch dot fonts). */
+const FONTS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8"]);
 /** Common etiket symbologies accepted by the template layer. */
 const SYMBOLOGIES = new Set([
   "code128", "code39", "code39ext", "code93", "ean13", "ean8", "upca", "upce",
@@ -118,6 +120,16 @@ function validateElement(ctx: Ctx, el: TemplateElement | undefined, field: strin
       else if (el.content.trim() === "") addWarning(sub, "text content is empty");
       else validatePlaceholders(sub, el.content, "content");
       if (el.align !== undefined && !ALIGNS.has(el.align)) addError(sub, `invalid align "${el.align}" (expected left|center|right)`);
+      if (el.font !== undefined && !FONTS.has(el.font)) {
+        addError(sub, `invalid font "${el.font}" (expected one of 0-8)`);
+      }
+      if (el.fontScale !== undefined) {
+        if (!Number.isInteger(el.fontScale) || el.fontScale < 1 || el.fontScale > 10) {
+          addError(sub, `fontScale must be an integer between 1 and 10`);
+        } else if (el.font === "0") {
+          addWarning(sub, `fontScale is ignored for font "0" (points-based)`);
+        }
+      }
       break;
     }
     case "barcode": {
@@ -197,6 +209,10 @@ export function validateTemplate(
       ctx.errors.push({ path: `${rowPath}.heightPercent`, message: "row heightPercent must be a positive number", level: "error" });
     } else {
       heightSum += row.heightPercent;
+    }
+
+    if (row.textScale !== undefined && (!Number.isFinite(row.textScale) || row.textScale < 0.5 || row.textScale > 3)) {
+      ctx.errors.push({ path: `${rowPath}.textScale`, message: "row textScale must be a number between 0.5 and 3", level: "error" });
     }
 
     if (row.repeat !== undefined) {
