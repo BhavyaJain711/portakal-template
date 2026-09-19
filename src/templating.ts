@@ -82,6 +82,14 @@ export function interpolateElement(element: TemplateElement, data: unknown): Tem
       return element.child
         ? { ...element, child: interpolateElement(element.child, data) }
         : element;
+    case "column":
+      return {
+        ...element,
+        items: element.items.map((item) => ({
+          ...item,
+          element: interpolateElement(item.element, data),
+        })),
+      };
     default:
       return element;
   }
@@ -160,6 +168,9 @@ export function resolveTemplate(
 function assertNoRepeat(element: TemplateElement): void {
   if (element.type === "box" && element.child) {
     assertNoRepeat(element.child);
+  }
+  if (element.type === "column") {
+    for (const item of element.items) assertNoRepeat(item.element);
   }
   // Element types carry no `repeat` — nested repeats would be on nested rows,
   // which the schema doesn't allow. This is a guard for future expansion.

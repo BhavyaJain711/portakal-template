@@ -34,7 +34,7 @@ function keyOf(v: AllowedVariable): string {
 const ALIGNS = new Set(["left", "center", "right"]);
 const ECCS = new Set(["L", "M", "Q", "H"]);
 const ORIENTATIONS = new Set(["horizontal", "vertical"]);
-const ELEMENT_TYPES = new Set(["text", "barcode", "qrcode", "line", "box", "image", "space"]);
+const ELEMENT_TYPES = new Set(["text", "barcode", "qrcode", "line", "box", "column", "image", "space"]);
 /** TSC text fonts: "0" (scalable) or "1"–"8" (fixed-pitch dot fonts). */
 const FONTS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8"]);
 /** Common etiket symbologies accepted by the template layer. */
@@ -158,6 +158,25 @@ function validateElement(ctx: Ctx, el: TemplateElement | undefined, field: strin
     }
     case "box": {
       if (el.child !== undefined) validateElement(sub, el.child, "child");
+      break;
+    }
+    case "column": {
+      const items = Array.isArray(el.items) ? el.items : [];
+      if (items.length === 0) addError(sub, "column must have at least one item");
+      let heightSum = 0;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]!;
+        const itemPath = `${elPath}.items[${i}]`;
+        if (!Number.isFinite(item?.heightPercent) || item.heightPercent <= 0) {
+          addError({ ...sub, path: itemPath }, "column item heightPercent must be a positive number");
+        } else {
+          heightSum += item.heightPercent;
+        }
+        validateElement({ ...sub, path: itemPath }, item?.element, "element");
+      }
+      if (items.length > 0 && Math.abs(heightSum - 100) > 0.001) {
+        addError(sub, `column item heights sum to ${heightSum}, expected ~100`);
+      }
       break;
     }
     case "image": {

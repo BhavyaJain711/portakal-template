@@ -8,6 +8,7 @@
  */
 
 import {
+  formatTSCBytes,
   label,
   tsc as tscLang,
   zpl as zplLang,
@@ -20,6 +21,7 @@ import type {
   TemplateSchema,
 } from "./types.js";
 import { resolveTemplate, TemplateError } from "./templating.js";
+import { parseBitmap } from "./image.js";
 import { layoutTemplate, toDots, type Bounds, type Layout } from "./layout.js";
 import { layoutText, scaleBarcode, scaleQr } from "./autoscale.js";
 
@@ -33,8 +35,13 @@ export interface CompileOptions {
 }
 
 export interface CompiledTemplate {
-  /** TSC/TSPL2 command string. */
-  tsc: string;
+  /** The wire stream to send to the printer. Binary — raw BITMAP pixel bytes. */
+  tsc: Uint8Array;
+  /**
+   * Display rendering of `tsc`: ASCII commands with any BITMAP payload elided.
+   * For showing in a UI or log — NEVER send this to a printer.
+   */
+  tscText: string;
   /** ZPL II command string. */
   zpl: string;
   /** SVG preview (via portakal-lite). */
@@ -238,42 +245,54 @@ function addElement(
       break;
     }
 
-    case "image": {
-      // v1: accept a pre-made 1-bit bitmap descriptor (data as comma-separated
-      // byte string or a Uint8Array) + target size.
-      const bitmap = parseBitmap(el.src);
-      if (bitmap) {
-        b.image(bitmap, { x, y, width, height });
+    case "column": {
+      // Vertical stack inside one cell: item heights are percentages of the
+      // cell height. Tile by cumulative rounding so the items cover the cell
+      // exactly — rounding is applied to the boundaries, never the heights, so
+      // there are no 1-dot gaps or overlaps between neighbours.
+      const items = el.items ?? [];
+      if (items.length === 0) {
+        throw new TemplateError("column must have at least one item");
       }
+      const total = items.reduce((acc, item) => acc + item.heightPercent, 0);
+      if (Math.abs(total - 100) > 0.001) {
+        throw new TemplateError(`column item heights sum to ${total}, expected ~100`);
+      }
+      let cum = 0;
+      for (const item of items) {
+        const y0 = y + Math.round((height * cum) / 100);
+        cum += item.heightPercent;
+        const y1 = y + Math.round((height * cum) / 100);
+        addElement(
+          b,
+          { widthPercent: 100, element: item.element },
+          // Propagate textScale so the item keeps the row's glyph stretch.
+          { x, y: y0, width, height: Math.max(1, y1 - y0), textScale: bounds.textScale },
+          dpi,
+          fontBase,
+          font0Mode,
+          charWidthFactor,
+        );
+      }
+      break;
+    }
+
+    case "image": {
+      // A pre-made 1-bit bitmap descriptor. TSC BITMAP / ZPL ^GFA print at the
+      // raster's native pixel size (neither can scale), so the descriptor must
+      // already be sized to fit the cell — the builder resizes on pick. Center
+      // it in the cell (both the compiler and the preview use this x,y).
+      const bitmap = parseBitmap(el.src);
+      b.image(bitmap, {
+        x: x + Math.max(0, Math.floor((width - bitmap.width) / 2)),
+        y: y + Math.max(0, Math.floor((height - bitmap.height) / 2)),
+      });
       break;
     }
 
     case "space":
       break;
   }
-}
-
-/**
- * Parse an image source into a MonochromeBitmap. Accepts a compact descriptor:
- * `"width,height,byte,byte,..."` (dots) — a simple way to embed a 1-bit bitmap
- * in a template without a base64 dependency.
- */
-function parseBitmap(src: string): Parameters<LabelBuilder["image"]>[0] | null {
-  const parts = src.split(",");
-  const width = Number(parts[0]);
-  const height = Number(parts[1]);
-  const bytes = parts.slice(2).map(Number);
-  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
-    throw new TemplateError(`invalid image src (expected "width,height,byte,..."): ${src.slice(0, 40)}`);
-  }
-  const bytesPerRow = Math.ceil(width / 8);
-  if (bytes.length !== bytesPerRow * height) {
-    throw new TemplateError(
-      `image src byte count ${bytes.length} does not match ${bytesPerRow * height} bytes for ${width}x${height}`,
-    );
-  }
-  const data = Uint8Array.from(bytes);
-  return { data, width, height, bytesPerRow };
 }
 
 /**
@@ -290,9 +309,11 @@ export function compileTemplate(
   const { dpi = 203, fontBase, font0Mode, charWidthFactor, unit = "mm" } = opts.spec;
   const builder = buildLabel(resolved, layout, dpi, fontBase, font0Mode, charWidthFactor, opts.spec, unit);
   const svg = tscLang.preview(builder);
+  const tscBytes = tscLang.compile(builder);
 
   return {
-    tsc: tscLang.compile(builder),
+    tsc: tscBytes,
+    tscText: formatTSCBytes(tscBytes),
     zpl: zplLang.compile(builder),
     svg,
     layout,

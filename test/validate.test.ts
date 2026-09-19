@@ -325,6 +325,70 @@ describe("validateTemplate", () => {
     expect(result.valid).toBe(true);
     expect(result.warnings.some((w) => w.message.includes("ignored for font"))).toBe(true);
   });
+
+  it("accepts a column element whose items sum to 100", () => {
+    const tpl: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [
+            {
+              widthPercent: 100,
+              element: {
+                type: "column",
+                items: [
+                  { heightPercent: 50, element: { type: "barcode", content: "123" } },
+                  { heightPercent: 50, element: { type: "text", content: "{{sku}}" } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const result = validateTemplate(tpl, { allowedVariables: ["sku"] });
+    expect(result.errors).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags column items that don't sum to 100 and unknown placeholders inside them", () => {
+    const tpl: TemplateSchema = {
+      rows: [
+        {
+          heightPercent: 100,
+          cells: [
+            {
+              widthPercent: 100,
+              element: {
+                type: "column",
+                items: [
+                  { heightPercent: 30, element: { type: "text", content: "{{nope}}" } },
+                  { heightPercent: 30, element: { type: "text", content: "B" } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const result = validateTemplate(tpl, { allowedVariables: ["sku"] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "rows[0].cells[0].element.items[0].element", message: '"{{nope}}" is not an allowed variable' }),
+        expect.objectContaining({ path: "rows[0].cells[0].element", message: "column item heights sum to 60, expected ~100" }),
+      ]),
+    );
+  });
+
+  it("flags an empty column", () => {
+    const tpl: TemplateSchema = {
+      rows: [{ heightPercent: 100, cells: [{ widthPercent: 100, element: { type: "column", items: [] } }] }],
+    };
+    const result = validateTemplate(tpl);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message === "column must have at least one item")).toBe(true);
+  });
 });
 
 describe("extractPlaceholders", () => {

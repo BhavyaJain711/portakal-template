@@ -44,7 +44,15 @@ const designTemplate = {
       cells: [
         {
           widthPercent: 100,
-          element: { type: "text", content: "{{name}}", align: "center" },
+          // A `column` stacks several elements in one cell: here the part name
+          // over its size. Item heights are percentages of the cell height.
+          element: {
+            type: "column",
+            items: [
+              { heightPercent: 60, element: { type: "text", content: "{{name}}", align: "center" } },
+              { heightPercent: 40, element: { type: "text", content: "{{size}}", align: "center" } },
+            ],
+          },
         },
       ],
     },

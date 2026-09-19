@@ -101,6 +101,18 @@ export interface TemplateCell {
   element: TemplateElement;
 }
 
+/**
+ * One item of a `column` element: an element plus its share of the cell height.
+ * Items stack top→down inside a single cell, so one cell can hold several
+ * elements (e.g. a barcode over two text lines).
+ */
+export interface ColumnItem {
+  /** Height as a percentage of the cell height (e.g. 50 = half the cell). */
+  heightPercent: number;
+  /** The element rendered in this slot. */
+  element: TemplateElement;
+}
+
 /** Supported template element types. */
 export type TemplateElement =
   | {
@@ -174,6 +186,15 @@ export type TemplateElement =
       src: string;
       /** Whether to dither (reserved; v1 accepts pre-made 1-bit bitmaps only). */
       dither?: boolean;
+    }
+  | {
+      type: "column";
+      /**
+       * Vertical stack of elements inside one cell. Item heights are
+       * percentages of the CELL height and must sum to ~100, exactly like row
+       * heights. Items may contain any element, including another `column`.
+       */
+      items: ColumnItem[];
     }
   | { type: "space" };
 

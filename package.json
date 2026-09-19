@@ -1,6 +1,6 @@
 {
   "name": "portakal-template",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Percentage-layout label templates on top of portakal-lite. Declarative JSON template + data → TSC/TSPL2 + ZPL II printer-ready strings, with auto-scaling layout. Device-agnostic: the label size/DPI are supplied at compile time, not stored in the template.",
   "keywords": [
     "printer",
@@ -37,7 +37,7 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "portakal-lite": "^1.0.0"
+    "portakal-lite": "^2.0.0"
   },
   "devDependencies": {
     "tsup": "^8.5.1",
