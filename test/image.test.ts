@@ -39,13 +39,13 @@ describe("compileTemplate image element", () => {
     // 0b11110000 = 240 = 0xF0 — the raw byte must be present in the binary output.
     const tscStr = decode(result.tsc);
     expect(tscStr).toMatch(/BITMAP \d+,\d+,1,1,0,/);  // header is text
-    // Verify the actual raw byte 0xF0 follows the header (not ASCII "240")
+    // Verify the actual raw byte 0x0F (~0xF0 in TSPL inverse polarity) follows the header
     const headerBytes = new TextEncoder().encode("0,");  // end of the BITMAP header
     let found = false;
     for (let i = 0; i < result.tsc.length - 2; i++) {
       if (result.tsc[i] === headerBytes[0] && result.tsc[i + 1] === headerBytes[1]) {
-        // Check if 0xF0 byte follows
-        if (result.tsc[i + 2] === 0xF0) { found = true; break; }
+        // Check if 0x0F byte follows
+        if (result.tsc[i + 2] === 0x0F) { found = true; break; }
       }
     }
     expect(found).toBe(true);

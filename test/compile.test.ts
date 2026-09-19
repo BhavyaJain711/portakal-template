@@ -203,8 +203,8 @@ describe("compileTemplate", () => {
     expect(result.tscText).toContain("<32 bytes of bitmap data>");
     expect(result.tscText).toContain("PRINT 1");
     expect(result.tscText).not.toContain("\uFFFD");
-    // The wire stream still carries the raw pixel bytes.
-    expect(Array.from(result.tsc)).toContain(0xff);
+    // The wire stream carries the inverted TSPL pixel bytes (0 = black dot).
+    expect(Array.from(result.tsc)).toContain(0x00);
   });
 });
 
